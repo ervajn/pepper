@@ -13,14 +13,16 @@ def main():
     setup_logger(args.verbose)
     logging.debug("Args: {}".format(args))
 
-    robot = Robot(fname=args.file, ip=args.ip, port=args.port, dryrun=args.dryrun)
+    robot = Robot(fname=args.file, ip=args.ip, port=args.port, dryrun=args.dryrun, rewrite=args.rewrite)
 
     robot.interact()
    
 
 class Robot(object):
-    def __init__(self, fname, ip, port, dryrun):
+    def __init__(self, fname, ip, port, dryrun, rewrite):
+        self.fname = fname
         self.dryrun = dryrun
+        self.rewrite = rewrite
         if self.dryrun:
             logging.warning(">>>>>>>>>> Running in dry run mode <<<<<<<<<<")
         logging.debug("Reading file {}".format(fname))
@@ -40,6 +42,11 @@ class Robot(object):
         if what not in self.texts:
             logging.debug('Adding "{}" to list of texts'.format(what))
             self.texts.append(what)
+            if self.rewrite:
+                with open(self.fname, 'w') as f:
+                    logging.debug('Updating {} with new text "{}"'.format(self.fname, self.texts[-1]))
+                    for text in self.texts:
+                        f.write("{}\n".format(text))
         if not self.dryrun:
             self.tts.say(what)
 
@@ -62,6 +69,7 @@ class Robot(object):
                     print("Illegal index: {}. Allowed indices: 0-{}".format(i, len(self.texts)-1))                
             elif s.split()[0] == 's':
                 text = " ".join(s.split()[1:])
+                text = text.replace('"', '')
                 self.say(text)
             else:
                 print("Illegal command: {}".format(s))
@@ -73,6 +81,8 @@ def parse_args():
 
     parser.add_argument('-d', '--dryrun', action='store_true', default=False,
                         help='Run in dry run mode, i.e. do not talk to robot')
+    parser.add_argument('-r', '--rewrite', action='store_true', default=False,
+                        help='Update the file with texts when a text is added')
     parser.add_argument('-f', '--file', type=str, default='talk.txt',
                         help='Input text file containing utterances')
     parser.add_argument('-i', '--ip', type=str, default="192.168.1.110",
