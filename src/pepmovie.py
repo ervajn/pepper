@@ -20,26 +20,30 @@ def main():
 
 def say_something(O, n):
 	O.say(O.texts[n % len(O.texts)])
-	t = Timer(60.0, say_something, args=[O, n+1])
-	t.start()
+	O.t = Timer(60.0, say_something, args=[O, n+1])
+	O.t.start()
 
 class Robot(object):
     def __init__(self, fname, ip, port, dryrun, rewrite):
         self.fname = fname
         self.dryrun = dryrun
         self.rewrite = rewrite
+        self.t = None
         if self.dryrun:
             logging.warning(">>>>>>>>>> Running in dry run mode <<<<<<<<<<")
-        logging.debug("Reading file {}".format(fname))
+        logging.info("Reading file {}".format(fname))
         try:
             with open(fname) as f:
-                self.texts = [line.rstrip('\n').split(';')[0] for line in f]
+                try:
+                    self.texts = [line.decode('utf-8-sig').split(';')[0].replace('"', '') for line in f]
+                except:
+                    self.texts = [line.split(';')[0].replace('"', '') for line in f]
         except IOError:
             self.texts = ["Hello", "Good Bye"]
             logging.info("Failed to read file {}. Initializing with default texts.".format(fname))
         logging.debug("Available texts: {}".format(self.texts))
         logging.info("Connecting to robot on {} port={}".format(ip, port))
-	if not self.dryrun:
+        if not self.dryrun:
             self.tts = ALProxy("ALTextToSpeech", ip, port)
         say_something(self, 0)
 
@@ -79,7 +83,9 @@ class Robot(object):
                 self.say(text)
             else:
                 print("Illegal command: {}".format(s))
-            
+        if self.t is not None:
+            logging.debug("Canceling timer")
+            self.t.cancel()
 
 def parse_args():
     fc = argparse.ArgumentDefaultsHelpFormatter
